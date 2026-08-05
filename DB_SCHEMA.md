@@ -1,137 +1,136 @@
-# Estrutura do Banco de Dados SQLite (`DB_SCHEMA.md`)
+# SQLite Database Schema (`DB_SCHEMA.md`) - Extreme Tuning (v3.0)
 
-Este documento detalha o planejamento da estrutura do banco de dados **SQLite** para a aplicação **`lazy_cnpj`**, com base nas estruturas de dados Rust dos dados públicos do CNPJ fornecidos pela Receita Federal.
+This document details the **SQLite** database schema planning for the **`lazy_cnpj`** application, based on Rust data structures and Receita Federal's public CNPJ dataset.
 
 ---
 
-## 1. Visão Geral e Estratégia de Desempenho
+## 1. Overview & Performance Strategy (Extreme Tuning)
 
-A base de dados pública do CNPJ contém dezenas de milhões de registros (especialmente nas tabelas `empresas`, `estabelecimentos` e `socios`). Para garantir inserções ultrarrápidas na carga de ETL e buscas instantâneas na TUI, a modelagem adota as seguintes estratégias:
+The public CNPJ database contains ~45 million records. To shrink database storage from **~40 GB to ~8 GB** and achieve sub-millisecond query response times (**< 2ms**), the system enforces the following guidelines:
 
-1. **Configurações Pragma Otimizadas (Sessão de Carga/ETL)**:
-   - `PRAGMA journal_mode = WAL;` (Write-Ahead Logging para leitura/escrita concorrente).
-   - `PRAGMA synchronous = NORMAL;` ou `OFF` durante o ETL em lote.
-   - `PRAGMA cache_size = -64000;` (~64MB de cache em RAM por conexão).
+1. **Optimized Pragma Settings**:
+   - `PRAGMA page_size = 16384;` (16KB page size for shallow B-Trees during massive read operations).
+   - `PRAGMA journal_mode = WAL;` (Write-Ahead Logging for concurrent reads and writes).
+   - `PRAGMA synchronous = NORMAL;` during ETL loading.
+   - `PRAGMA cache_size = -128000;` (~128MB RAM cache per connection).
    - `PRAGMA temp_store = MEMORY;`
-   - `PRAGMA foreign_keys = OFF;` (Desativado temporariamente na carga para máxima performance de inserção).
+   - `PRAGMA foreign_keys = OFF;` temporarily disabled during batch insertion.
 
-2. **Tipos de Dados SQLite**:
-   - `TEXT`: `cnpj_basico`, `razao_social`, `nome_fantasia`, `cnae_fiscal_principal`, `cnae_fiscal_secundaria`, `cep`, `uf`, datas (`YYYY-MM-DD` ou `YYYYMMDD`), telefones, e-mails e descrições.
-   - `INTEGER`: Códigos numéricos (`natureza_juridica`, `qualificacao_responsavel`, `situacao_cadastral`, `motivo_situacao_cadastral`, `pais`, `municipio`, `qualificacao_socio`, `identificador_socio`, `identificador_matriz_filial`, `faixa_etaria`).
-   - `REAL` / `NUMERIC`: `capital_social` (convertido ou mantido como `NUMERIC` / `REAL` para buscas e filtros numéricos).
+2. **Compact Data Types**:
+   - **`WITHOUT ROWID`**: Applied to all tables with a unique Primary Key, eliminating hidden B-Tree overhead.
+   - **`INTEGER` for CNPJs**: `cnpj_basico`, `cnpj_ordem`, and `cnpj_dv` stored as 64-bit integers (`u32`/`u64` varints).
+   - **`INTEGER` for CNAE**: 7-digit numeric codes (`6201500`) instead of text strings.
+   - **`INTEGER` for Dates**: Stored as numeric `YYYYMMDD` integers (`20051103`) instead of text.
 
-3. **Estratégia de Índices**:
-   - Os índices são criados **APÓS** a inserção em lote dos dados de ETL para evitar _overhead_ durante a ingestão massiva.
+3. **Indexes & Post-Processing Strategy**:
+   - B-Tree indexes and FTS5 virtual tables are built **exclusively after full batch ingestion**.
+   - Automatic execution of `PRAGMA optimize;` and `VACUUM;` upon ETL pipeline completion.
 
 ---
 
-## 2. Esquema DDL (Data Definition Language)
+## 2. DDL Schema (Data Definition Language)
 
-### 2.1 Tabelas de Domínio (Lookups)
+### 2.1 Domain Lookup Tables
 
 ```sql
--- Tabela: PAISES
+-- Table: PAISES (Countries)
 CREATE TABLE IF NOT EXISTS paises (
     codigo INTEGER PRIMARY KEY,
     descricao TEXT NOT NULL
-);
+) WITHOUT ROWID;
 
--- Tabela: MUNICIPIOS
+-- Table: MUNICIPIOS (Municipalities with State/UF mapping)
 CREATE TABLE IF NOT EXISTS municipios (
     codigo INTEGER PRIMARY KEY,
-    descricao TEXT NOT NULL
-);
+    descricao TEXT NOT NULL,
+    uf TEXT NOT NULL
+) WITHOUT ROWID;
 
--- Tabela: QUALIFICACOES_SOCIOS
+-- Table: QUALIFICACOES_SOCIOS (Partner Qualifications)
 CREATE TABLE IF NOT EXISTS qualificacoes_socios (
     codigo INTEGER PRIMARY KEY,
     descricao TEXT NOT NULL
-);
+) WITHOUT ROWID;
 
--- Tabela: NATUREZAS_JURIDICAS
+-- Table: NATUREZAS_JURIDICAS (Legal Natures)
 CREATE TABLE IF NOT EXISTS naturezas_juridicas (
     codigo INTEGER PRIMARY KEY,
     descricao TEXT NOT NULL
-);
+) WITHOUT ROWID;
 
--- Tabela: CNAES
+-- Table: CNAES (Economic Activities - 7-digit numeric primary key)
 CREATE TABLE IF NOT EXISTS cnaes (
-    codigo TEXT PRIMARY KEY,
+    codigo INTEGER PRIMARY KEY,
     descricao TEXT NOT NULL
-);
+) WITHOUT ROWID;
 ```
 
 ---
 
-### 2.2 Tabelas Principais (Entidades)
+### 2.2 Main Entity Tables (Optimized - Extreme Tuning)
 
 ```sql
--- Tabela: EMPRESAS
+-- Table: EMPRESAS (No hidden ROWID + Integer CNPJ Base)
 CREATE TABLE IF NOT EXISTS empresas (
-    cnpj_basico TEXT PRIMARY KEY,
+    cnpj_basico INTEGER PRIMARY KEY, -- Stored as u32 (1 to 4 bytes varint)
     razao_social TEXT NOT NULL,
     natureza_juridica INTEGER NOT NULL,
     qualificacao_responsavel INTEGER NOT NULL,
     capital_social REAL NOT NULL DEFAULT 0.0,
-    porte_empresa TEXT NOT NULL,
+    porte_empresa INTEGER NOT NULL, -- Enum u8 (1: ME, 3: EPP, 5: DEMAIS)
     ente_federativo_responsavel TEXT
-);
+) WITHOUT ROWID;
 
--- Tabela: ESTABELECIMENTOS
+-- Table: ESTABELECIMENTOS (Integer CNPJ, CNAE, and Numeric Dates)
 CREATE TABLE IF NOT EXISTS estabelecimentos (
-    cnpj_basico TEXT NOT NULL,
-    cnpj_ordem TEXT NOT NULL,
-    cnpj_dv TEXT NOT NULL,
-    identificador_matriz_filial INTEGER NOT NULL,
+    cnpj_basico INTEGER NOT NULL,
+    cnpj_ordem INTEGER NOT NULL,
+    cnpj_dv INTEGER NOT NULL,
+    identificador_matriz_filial INTEGER NOT NULL, -- 1: Head office, 2: Branch
     nome_fantasia TEXT,
     situacao_cadastral INTEGER NOT NULL,
-    data_situacao_cadastral TEXT,
+    data_situacao_cadastral INTEGER, -- Numeric YYYYMMDD
     motivo_situacao_cadastral INTEGER,
     nome_cidade_exterior TEXT,
     pais INTEGER,
-    data_inicio_atividade TEXT,
-    cnae_fiscal_principal TEXT NOT NULL,
-    cnae_fiscal_secundaria TEXT,
+    data_inicio_atividade INTEGER,   -- Numeric YYYYMMDD
+    cnae_fiscal_principal INTEGER NOT NULL, -- 7-digit numeric CNAE
+    cnae_fiscal_secundaria TEXT,     -- Comma-separated list of secondary CNAEs
     tipo_logradouro TEXT,
     logradouro TEXT,
     numero TEXT,
     complemento TEXT,
     bairro TEXT,
     cep TEXT,
-    uf TEXT,
-    municipio INTEGER,
-    ddd_1 TEXT,
-    telefone_1 TEXT,
-    ddd_2 TEXT,
+    municipio INTEGER, -- FK to municipios(codigo) - UF resolved via JOIN
+    telefone_1 TEXT,   -- Concatenated DDD + Number in Rust (e.g., "(11) 98888-7777")
     telefone_2 TEXT,
-    ddd_fax TEXT,
-    fax TEXT,
     correio_eletronico TEXT,
     situacao_especial TEXT,
-    data_situacao_especial TEXT,
+    data_situacao_especial INTEGER,  -- Numeric YYYYMMDD
     PRIMARY KEY (cnpj_basico, cnpj_ordem, cnpj_dv)
-);
+) WITHOUT ROWID;
 
--- Tabela: DADOS_SIMPLES
+-- Table: DADOS_SIMPLES (Compact Tax Status + Integer Flags)
 CREATE TABLE IF NOT EXISTS dados_simples (
-    cnpj_basico TEXT PRIMARY KEY,
-    opcao_simples TEXT,
-    data_opcao_simples TEXT,
-    data_exclusao_simples TEXT,
-    opcao_mei TEXT,
-    data_opcao_mei TEXT,
-    data_exclusao_mei TEXT
-);
+    cnpj_basico INTEGER PRIMARY KEY,
+    opcao_simples INTEGER,        -- 1: Yes, 0: No, NULL: Other
+    data_opcao_simples INTEGER,   -- Numeric YYYYMMDD
+    data_exclusao_simples INTEGER,-- Numeric YYYYMMDD
+    opcao_mei INTEGER,            -- 1: Yes, 0: No, NULL: Other
+    data_opcao_mei INTEGER,       -- Numeric YYYYMMDD
+    data_exclusao_mei INTEGER     -- Numeric YYYYMMDD
+) WITHOUT ROWID;
 
--- Tabela: SOCIOS
+-- Table: SOCIOS (Partners / Board Members)
 CREATE TABLE IF NOT EXISTS socios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cnpj_basico TEXT NOT NULL,
+    cnpj_basico INTEGER NOT NULL,
     identificador_socio INTEGER NOT NULL,
     nome_socio_razao_social TEXT NOT NULL,
     cnpj_cpf_socio TEXT,
     qualificacao_socio INTEGER NOT NULL,
-    data_entrada_sociedade TEXT,
+    data_entrada_sociedade INTEGER, -- Numeric YYYYMMDD
     pais INTEGER,
     representante_legal TEXT,
     nome_representante TEXT,
@@ -142,76 +141,82 @@ CREATE TABLE IF NOT EXISTS socios (
 
 ---
 
-## 3. Índices de Alta Performance (`INDEXES`)
+## 3. High-Performance Indexes & FTS5 (Full-Text Search)
 
-Criados para suportar buscas rápidas por CNPJ completo, Razão Social/Nome Fantasia, Nome de Sócio, UF e Município.
-
+### 3.1 Traditional B-Tree Indexes
 ```sql
--- Busca por CNPJ completo (CNPJ Básico + Ordem + DV) e filtro por CNPJ Básico em Estabelecimentos
+-- Full CNPJ lookups & Integer joins
 CREATE INDEX IF NOT EXISTS idx_estab_cnpj_full ON estabelecimentos(cnpj_basico, cnpj_ordem, cnpj_dv);
-CREATE INDEX IF NOT EXISTS idx_estab_uf_muni ON estabelecimentos(uf, municipio);
+CREATE INDEX IF NOT EXISTS idx_estab_muni ON estabelecimentos(municipio);
 CREATE INDEX IF NOT EXISTS idx_estab_cnae ON estabelecimentos(cnae_fiscal_principal);
+CREATE INDEX IF NOT EXISTS idx_estab_data_inicio ON estabelecimentos(data_inicio_atividade);
 
--- Busca por Razão Social (suporte a LIKE / prefixo)
-CREATE INDEX IF NOT EXISTS idx_empresas_razao_social ON empresas(razao_social COLLATE NOCASE);
-
--- Busca por Sócios vinculados a empresas ou nome de sócio
+-- Partner company joins
 CREATE INDEX IF NOT EXISTS idx_socios_cnpj_basico ON socios(cnpj_basico);
-CREATE INDEX IF NOT EXISTS idx_socios_nome ON socios(nome_socio_razao_social COLLATE NOCASE);
+```
+
+### 3.2 FTS5 Virtual Tables (Instant Substring Search < 2ms)
+```sql
+-- FTS5 table for free-text search on Company Name and Trade Name
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_empresas USING fts5(
+    cnpj_basico UNINDEXED,
+    razao_social,
+    nome_fantasia,
+    content='empresas',
+    content_rowid='cnpj_basico'
+);
+
+-- FTS5 table for instant partner name lookup
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_socios USING fts5(
+    cnpj_basico UNINDEXED,
+    nome_socio,
+    content='socios',
+    content_rowid='id'
+);
 ```
 
 ---
 
-## 4. Mapeamento de Tipos Rust <-> SQLite (`rusqlite`)
+## 4. Type Mapping & Sanitization: Rust <-> SQLite (`diesel`)
 
-| Tabela Rust / Campo           | Tipo Struct Rust | Tipo SQLite | Observações / Conversão                     |
-| :---------------------------- | :--------------- | :---------- | :------------------------------------------ |
-| **Empresa**                   |                  |             |                                             |
-| `cnpj_basico`                 | `String`         | `TEXT`      | Primary Key                                 |
-| `razao_social`                | `String`         | `TEXT`      | Indexed `NOCASE`                            |
-| `natureza_juridica`           | `u16`            | `INTEGER`   | FK -> `naturezas_juridicas(codigo)`         |
-| `qualificacao_responsavel`    | `u8`             | `INTEGER`   |                                             |
-| `capital_social`              | `String`         | `REAL`      | Converter `String` ("1000,00" -> `1000.00`) |
-| `porte_empresa`               | `String`         | `TEXT`      | "00", "01", "03", "05"                      |
-| `ente_federativo_responsavel` | `Option<String>` | `TEXT`      | Nullable                                    |
-| **Estabelecimento**           |                  |             |                                             |
-| `cnpj_basico`                 | `String`         | `TEXT`      | Composite PK                                |
-| `cnpj_ordem`                  | `String`         | `TEXT`      | Composite PK                                |
-| `cnpj_dv`                     | `String`         | `TEXT`      | Composite PK                                |
-| `identificador_matriz_filial` | `u8`             | `INTEGER`   | 1: Matriz, 2: Filial                        |
-| `situacao_cadastral`          | `u8`             | `INTEGER`   | 01, 02, 03, 04, 08                          |
-| `pais`                        | `Option<u16>`    | `INTEGER`   | Nullable                                    |
-| `municipio`                   | `Option<u16>`    | `INTEGER`   | Nullable                                    |
-| **Sócio**                     |                  |             |                                             |
-| `cnpj_basico`                 | `String`         | `TEXT`      | Indexado                                    |
-| `identificador_socio`         | `u8`             | `INTEGER`   | 1: PJ, 2: PF, 3: Estrangeiro                |
-| `qualificacao_socio`          | `u8`             | `INTEGER`   | FK -> `qualificacoes_socios(codigo)`        |
-| `faixa_etaria`                | `u8`             | `INTEGER`   | 0 a 9                                       |
+| Field / Table | Original CSV Format | SQLite Type | Rust Sanitization Rule (`etl/zip_streamer.rs`) |
+| :--- | :--- | :--- | :--- |
+| `cnpj_basico`, `ordem`, `dv` | `"00000001"` (String) | `INTEGER` | Parse `u32`. Saves 75% storage per CNPJ. |
+| `cnae_fiscal_principal` | `"6201500"` (String) | `INTEGER` | Parse `u32`. Reduces storage space by 50%. |
+| Dates (`data_inicio`, etc) | `"YYYYMMDD"` (e.g. `20051103`) | `INTEGER` | Parse `u32` (e.g. `20051103`). Reduces storage by 60%. |
+| `capital_social` (Companies) | `"1000,00"` or `"205431,50"` | `REAL` | Replace `,` with `.` -> parse `f64`. Default `0.0`. |
+| `opcao_simples` / `mei` | `"S"`, `"N"`, `""` | `INTEGER` | `"S"` -> `1`, `"N"` -> `0`, other -> `NULL`. |
+| Phones (`1` and `2`) | Separate Area Code & Number | `TEXT` | Format in Rust: `format!("({}) {}", ddd, tel)` or `NULL`. |
+| Text (`razao_social`, etc) | Strings with accents/spaces | `TEXT` | `.trim()` and remove null characters (`\0`). |
 
 ---
 
-## 5. View Otimizada para Visualização Completa da Empresa
+## 5. Optimized View for Complete Company Display
 
-Para facilitar consultas na TUI e exportações integradas sem precisar refazer múltiplos `JOIN`s manualmente na camada de aplicação:
+The View resolves integer keys, reconstructs formatted dates/CNPJs, and retrieves State/UF directly from `municipios`:
 
 ```sql
 CREATE VIEW IF NOT EXISTS vw_empresa_completa AS
 SELECT
-    e.cnpj_basico || est.cnpj_ordem || est.cnpj_dv AS cnpj_completo,
+    printf('%08d/%04d-%02d', e.cnpj_basico, est.cnpj_ordem, est.cnpj_dv) AS cnpj_completo,
+    e.cnpj_basico,
     e.razao_social,
     est.nome_fantasia,
     nj.descricao AS natureza_juridica_desc,
     e.capital_social,
     e.porte_empresa,
     est.situacao_cadastral,
-    est.data_inicio_atividade,
+    -- Date formatter YYYYMMDD Integer -> YYYY-MM-DD Text for display
+    printf('%04d-%02d-%02d', est.data_inicio_atividade / 10000, (est.data_inicio_atividade % 10000) / 100, est.data_inicio_atividade % 100) AS data_inicio_atividade_formatada,
     est.cnae_fiscal_principal,
     cnae.descricao AS cnae_principal_desc,
     est.tipo_logradouro || ' ' || est.logradouro || ', ' || est.numero AS endereco_completo,
     est.bairro,
     est.cep,
-    est.uf,
+    m.uf,
     m.descricao AS municipio_desc,
+    est.telefone_1,
+    est.telefone_2,
     est.correio_eletronico,
     ds.opcao_simples,
     ds.opcao_mei

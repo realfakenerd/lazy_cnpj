@@ -1,100 +1,98 @@
-# Sugestões de Funcionalidades & Recursos Avançados (`FEATURES.md`)
+# Advanced Features & Resource Roadmap (`FEATURES.md`)
 
-Este documento consolida sugestões de funcionalidades avançadas, utilitários e melhorias de UX para o **`lazy_cnpj`**, focando no ecossistema Rust e na experiência do usuário em ambiente de terminal (TUI Ratatui).
-
----
-
-## 1. Módulo de Busca & Filtros Avançados (`Search Tab`)
-
-### 1.1 FTS5 (Full-Text Search no SQLite)
-
-- **Busca por Texto Livre**: Implementar suporte a **SQLite FTS5** na Razão Social, Nome Fantasia e Nome do Sócio.
-- **Benefício**: Permite buscas parciais por palavras-chave sem perder performance (ex: buscar "Tecnologia Silva" encontrando "SILVA TECNOLOGIA E SERVICOS LTDA").
-
-### 1.2 Filtros Combinados / Multi-Critério
-
-- **Filtros por Estado (UF) e Município**: Auto-complete com lista de UFs e municípios.
-- **Filtro por Faixa de Capital Social**: Permitir filtrar empresas com `capital_social >= X` e `<= Y`.
-- **Filtro por Situação Cadastral**: Filtrar apenas empresas **Ativas** (código `02`), ou Baixadas/Inaptas.
-- **Filtro por Simples Nacional / MEI**: Checkboxes para incluir/excluir Optantes do Simples Nacional ou MEI.
-- **Filtro por CNAE (Setor Econômico)**: Seleção por código de atividade econômica principal ou secundária.
+This document consolidates advanced features, utility tools, and UX enhancements for **`lazy_cnpj`**, focusing on the Rust ecosystem and high-performance Terminal User Interface (Ratatui TUI).
 
 ---
 
-## 2. Visualizador Detalhado da Empresa (`Company Detail Modal / Tab`)
+## 1. Advanced Search & Filter Module (`Search Tab`)
 
-- **Visão 360° da Empresa**: Ao pressionar `Enter` na lista de resultados, abrir uma tela detalhada dividida em seções:
-  - **Dados Cadastrais**: CNPJ completo, Razão Social, Nome Fantasia, Situação, Data de Início, Porte.
-  - **Quadro de Sócios e Administradores (QSA)**: Tabela de sócios, faixas etárias, qualificações e representantes legais.
-  - **Endereço Completo & Contatos**: Logradouro, Bairro, CEP, Cidade, UF, Telefones e E-mail.
-  - **Atividades Econômicas**: CNAE Principal e lista expandida de CNAEs Secundários com descrições amigáveis.
-  - **Histórico & Situação Especial**: Motivo da situação cadastral, ente federativo e dados de opção Simples/MEI.
+### 1.1 FTS5 (SQLite Full-Text Search)
+- **Free Text Search**: Implement **SQLite FTS5** support for Company Name (*Razão Social*), Trade Name (*Nome Fantasia*), and Partner Name (*Nome do Sócio*).
+- **Benefit**: Enables partial word and substring matching with sub-millisecond execution times (e.g., searching for "Tech Silva" finds "SILVA TECHNOLOGY AND SERVICES LTD").
 
----
-
-## 3. Integrações Externa & Ações Rápidas (Shortcuts)
-
-- **Cópia Instantânea para Clipboard (`c` / `Ctrl+C`)**:
-  - Copiar CNPJ formatado (`XX.XXX.XXX/XXXX-XX`) ou limpo.
-  - Copiar cartão de dados da empresa em formato JSON / Texto simples.
-- **Abertura no Navegador (`o` / `Open`)**:
-  - Atalho para abrir a empresa diretamente no **Sintegra**, **Redesim**, **Google Maps** (endereço) ou consultas de cartão CNPJ da Receita.
-- **Consulta de CEP Integrada**:
-  - Atalho para validar ou enriquecer o endereço via APIs públicas (ex: ViaCEP / BrasilAPI) quando houver conexão com a internet.
+### 1.2 Combined Multi-Criteria Filtering
+- **State (UF) & City Filter**: Autocomplete dropdown for Brazilian states and municipalities.
+- **Capital Stock Range**: Filter companies by minimum and maximum `capital_social`.
+- **Registration Status**: Filter active companies (`02 - ATIVA`), or closed/suspended entries.
+- **Tax Option Filter**: Toggle checkboxes to include/exclude Simples Nacional or MEI optants.
+- **CNAE (Sector) Filter**: Select by primary or secondary economic activity code.
 
 ---
 
-## 4. Recursos de Exportação Personalizada (`Export Tab`)
+## 2. Company Detail Viewer (`Company 360° Modal`)
 
-- **Formatos Adicionais de Exportação**:
-  - **CSV / TSV**: Com seletor de delimitador (vírgula ou ponto-e-vírgula para Excel em PT-BR).
-  - **JSON / JSON Lines (JSONL)**: Para integração com pipelines de dados ou scripts em Python/Node.
-  - **SQLite Dump / Parquet**: Para usuários de Data Science que desejam subsets filtrados da base.
-- **Templates de Exportação Predefinidos**:
-  - Preset **"Mailing / Prospecção"**: CNPJ, Razão Social, E-mail, Telefones, UF, Cidade, CNAE.
-  - Preset **"Análise Cadastral"**: Dados cadastrais completos + QSA (Sócios).
-  - Preset **"Geográfico"**: CNPJ, UF, Município, CEP, Bairro.
+- **360° Company View**: Pressing `Enter` on any table result opens an overlay modal split into structured tabbed sections:
+  - **Registration Data**: Full CNPJ, Company Name, Trade Name, Status, Start Date, Size.
+  - **Board of Directors & Partners (QSA)**: Table of partners, age ranges, qualifications, and legal representatives.
+  - **Address & Contacts**: Street, Neighborhood, ZIP Code, City, State, Phones, and Email.
+  - **Economic Activities**: Main CNAE and expandable list of secondary CNAEs with friendly descriptions.
+  - **Tax & History**: Special status reasons, federative entity, and Simples/MEI status.
 
 ---
 
-## 5. Gerenciamento de ETL, Atualizações & Diagnósticos (`Update Tab`)
+## 3. External Integrations & Quick Action Shortcuts
 
-- **Downloads Parciais / Seleção de Arquivos**:
-  - Permitir ao usuário escolher atualizar apenas tabelas específicas (ex: apenas a tabela de `Empresas` ou apenas `Municípios`).
-- **Verificação de Integridade Checksum (MD5/SHA256)**:
-  - Validar os downloads dos arquivos ZIP da Receita Federal antes do processamento para evitar corrupção de dados.
-- **Resumo Estatístico da Base (Dashboard)**:
-  - Painel exibindo estatísticas gerais da base local:
-    - Total de Empresas e Estabelecimentos cadastrados.
-    - Distribuição por UF (Top 5 estados com mais empresas).
-    - Porcentagem de empresas ativas vs. baixadas.
-    - Data da última carga/atualização realizada.
+- **Instant Clipboard Copy (`c` / `Ctrl+C`)**:
+  - Copy formatted CNPJ (`XX.XXX.XXX/XXXX-XX`) or raw numbers.
+  - Copy complete company data card as JSON / Plain Text.
+- **Browser Quick Links (`o` / `Open`)**:
+  - Shortcut keys to open the selected company directly on **Google Maps** (address) or official public lookup portals.
+- **ZIP Code / Address Validation**:
+  - Integration with public APIs (e.g., ViaCEP / BrasilAPI) to enrich or validate address data when online.
 
 ---
 
-## 6. Experiência de Uso (TUI & UX)
+## 4. Custom Data Export Options (`Export Tab`)
 
-- **Suporte Completo a Mouse**:
-  - Clique para selecionar abas, scroll no mouse para rolar tabelas e modais.
-- **Temas Customizáveis (Dark / Light / High Contrast)**:
-  - Palette de cores configurável no arquivo de configuração `lazy_cnpj.toml`.
-- **Modo CLI / Headless (Sem TUI)**:
-  - Permitir rodar o `lazy_cnpj` via linha de comando para automação de ETL sem abrir a interface de terminal:
-    - Ex: `lazy_cnpj update --auto` ou `lazy_cnpj export --uf SP --cnae 6201500 --output sp_tech.csv`.
+- **Additional Export Formats**:
+  - **CSV / TSV**: Configurable delimiter (comma or semicolon for Excel).
+  - **JSON / JSON Lines (JSONL)**: For integration with Python/Node data pipelines.
+  - **SQLite Dump / Parquet**: For data science workflows requiring filtered database subsets.
+- **Predefined Export Presets**:
+  - **"Prospecting / Sales" Preset**: CNPJ, Company Name, Email, Phones, State, City, Main CNAE.
+  - **"Compliance / Registration" Preset**: Complete registration data + Partners (QSA).
+  - **"Geographic" Preset**: CNPJ, State, Municipality, ZIP, Neighborhood.
 
 ---
 
-## 7. Mapeamento Direto com os Widgets Padrão do Ratatui
+## 5. ETL Management, Updates & Diagnostics (`Update Tab`)
 
-Todas as funcionalidades acima são **100% realizáveis utilizando os widgets nativos** (ou através da composição deles) fornecidos pelo Ratatui:
+- **Selective Downloads / Partial File Sync**:
+  - Allow users to update specific tables (e.g., only update `Companies` or `Municipalities`).
+- **File Checksum Verification (MD5/SHA256)**:
+  - Validate Receita Federal `.zip` downloads prior to extraction to prevent corrupted data ingestion.
+- **Database Statistics Dashboard**:
+  - Real-time dashboard showing local database stats:
+    - Total registered Companies and Establishments.
+    - Distribution by State (Top 5 states with most companies).
+    - Percentage of Active vs. Closed companies.
+    - Last sync date timestamp.
 
-| Funcionalidade Planejada            | Widget Ratatui Nativo / Componente              | Como é Implementado                                                                             |
-| :---------------------------------- | :---------------------------------------------- | :---------------------------------------------------------------------------------------------- |
-| **Navegação entre Seções**          | `Tabs`                                          | Alterna entre as telas de Pesquisa, Exportação e Update.                                        |
-| **Listas de Resultados / Empresas** | `Table` + `TableState`                          | Exibe tabelas paginadas ou roláveis com seleção de linha ativa, ordenação e colunas ajustáveis. |
-| **Filtros e Entradas de Texto**     | `Paragraph` + `Block` (ou crate `tui-textarea`) | Caixas de busca de CNPJ, Razão Social e selects de UF/Município.                                |
-| **Popups e Modal 360°**             | `Clear` + `Block` + `Layout`                    | Renderiza a camada modal sobrepondo a tela principal (`Clear`) com abas/blocos internos.        |
-| **Indicadores de Carga/ETL**        | `Gauge` / `LineGauge`                           | Barras de progresso dinâmicas de download e inserção no SQLite.                                 |
-| **Dashboard e Métricas**            | `BarChart` / `Sparkline`                        | Gráficos de barras de empresas por UF ou histórico de progresso do ETL.                         |
-| **Listas de Opções / Checkboxes**   | `List` + `ListState`                            | Listagem de colunas para exportação e seleção múltipla de arquivos.                             |
-| **Barras de Rolagem**               | `Scrollbar` + `ScrollbarState`                  | Rolagem lateral e vertical em modais com textos longos ou tabelas com muitas colunas.           |
+---
+
+## 6. User Experience & TUI Optimizations
+
+- **Full Mouse Support**:
+  - Click to select tabs, scroll wheel support for tables and modals.
+- **Customizable Color Themes**:
+  - Palette settings in `lazy_cnpj.toml` (`Dracula`, `Nord`, `Gruvbox`, `Catppuccin`).
+- **CLI / Headless Mode (No TUI)**:
+  - Allow running `lazy_cnpj` directly from the command line for automated headless ETL scripts:
+    - Example: `lazy_cnpj update --auto` or `lazy_cnpj export --uf SP --cnae 6201500 --output sp_tech.csv`.
+
+---
+
+## 7. Native Ratatui Widget Mapping
+
+All features mapped directly to native or composite Ratatui widgets:
+
+| Planned Feature | Native Ratatui Widget | Implementation |
+| :--- | :--- | :--- |
+| **Section Navigation** | `Tabs` | Switches between Search, Export, and Update screens. |
+| **Results List** | `Table` + `TableState` | Displays paginated/scrollable tables with selection and custom columns. |
+| **Filter Inputs** | `Paragraph` + `Block` / `ratatui-textarea` | Interactive input boxes for search terms and filters. |
+| **360° View Popup** | `tui-overlay` / `Clear` + `Block` | Render floating modal overlay with internal tab layout. |
+| **ETL Progress** | `Gauge` / `LineGauge` | Dynamic progress bars for downloads and SQLite inserts. |
+| **Dashboard Charts** | `BarChart` / `Sparkline` | Bar charts for state distribution or ETL throughput. |
+| **Export Column Selector** | `List` + `ListState` | Multi-select checkboxes for export columns. |
+| **Modal Scrollbars** | `Scrollbar` + `ScrollbarState` | Scrollbars for lengthy company descriptions. |

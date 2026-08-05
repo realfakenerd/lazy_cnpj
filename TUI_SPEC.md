@@ -1,120 +1,151 @@
-# Especificação Visual Completa - `lazy_cnpj`
+# Full Visual Specification - `lazy_cnpj`
 
-Este documento contém os mockups ASCII das **3 ABAS DO APLICATIVO**, do **MODAL DE AJUDA**, das **AÇÕES EXTERNAS** e do **ENGINE ADAPTATIVO DE CARGA (Update)**.
-
----
-
-## 1. Navegação por Abas e Rodapé
-
-O topo do terminal conterá a barra de **3 Abas Principais**:
-- **`[ Pesquisa ]`** (Aba 1)
-- **`[ Exportação ]`** (Aba 2)
-- **`[ Update ]`** (Aba 3)
-
-O **rodapé (footer)** é idêntico em todas as abas:
-`[Tab/Shift+Tab] Alternar Abas  │  [?] Ajuda  │  [q] Sair`
+This document contains ASCII mockups for the **3 MAIN TABS**, **HELP MODAL**, **EXTERNAL ACTIONS**, and the **360° COMPANY MODAL**.
 
 ---
 
-## 2. Mockups de TODAS as Abas
+## 1. Tab Navigation & Footer
 
-### ABA 1: `[ Pesquisa ]`
+The top of the terminal contains the **3 Main Tabs**:
+- **`[ Search ]`** (Tab 1)
+- **`[ Export ]`** (Tab 2)
+- **`[ Update ]`** (Tab 3)
+
+The **footer** is consistent across all tabs:
+`[Tab/Shift+Tab] Switch Tabs  │  [?] Help  │  [q] Quit`
+
+---
+
+## 2. Mockups for All Tabs
+
+### TAB 1: `[ Search ]`
 
 ```text
 ┌── lazy_cnpj v0.1.0 ─────────────────────────────────────────────────────────────────────────────┐
-│ [ Pesquisa ]  Exportação  Update                                                               │
+│ [ Search ]  Export  Update                                                                     │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 🔍 Termo / CNPJ: [ PETROBRAS                                                          ] (Enter) │
-│ ⚙️ Filtros: Situação: [ 🟢 Apenas Ativas ] │ UF: [ RJ ] │ CEP: [ Todos      ]  ([f] Editar Filtros)│
+│ 🔍 Term / CNPJ: [ PETROBRAS                                                           ] (Enter) │
+│ ⚙️ Filters: Status: [ 🟢 Active Only ] │ State: [ RJ ] │ ZIP: [ All        ]  ([f] Edit Filters)│
 ├───────────────────────────────────────┬─────────────────────────────────────────────────────────┤
-│ Resultados Encontrados (12)           │ Detalhes da Empresa Selecionada                         │
+│ Results Found (12)                    │ Selected Company Details                                │
 ├───────────────────────────────────────┼─────────────────────────────────────────────────────────┤
-│ > 33.000.167/0001-01  🟢               │ Razão Social:   PETROLEO BRASILEIRO S A PETROBRAS       │
-│   PETROLEO BRASILEIRO S A PETROBRAS   │ Nome Fantasia:  CENTRO DE PESQUISAS                     │
-│                                       │ Situação:       [ ATIVA ] desde 03/11/2005              │
-│   00.000.000/0001-91  🟢              │ Porte:          GRANDE PORTE                            │
-│   BANCO DO BRASIL SA                  │ Capital Social: R$ 205.431.983.300,00                   │
-│                                       │ Logradouro:     AVENIDA HORACIO MACEDO, 950             │
-│   60.701.190/0001-04  🔴              │ Cidade/UF:      RIO DE JANEIRO - RJ (CEP: 21.941-598)   │
-│   ITAU UNIBANCO S.A.                  │ CNAE Principal: 72.10-0-00 (Pesquisa e desenvolvimento) │
-│                                       │ Quadro Sócios:  MAGDA MARIA DE REGINATO (Presidente)    │
+│ > 33.000.167/0001-01  🟢               │ Company Name:   PETROLEO BRASILEIRO S A PETROBRAS       │
+│   PETROLEO BRASILEIRO S A PETROBRAS   │ Trade Name:     CENTRO DE PESQUISAS                     │
+│                                       │ Status:         [ ACTIVE ] since 03/11/2005             │
+│   00.000.000/0001-91  🟢              │ Company Size:   LARGE ENTERPRISE                        │
+│   BANCO DO BRASIL SA                  │ Capital Stock:  R$ 205.431.983.300,00                   │
+│                                       │ Address:        AVENIDA HORACIO MACEDO, 950             │
+│   60.701.190/0001-04  🔴              │ City/State:     RIO DE JANEIRO - RJ (ZIP: 21.941-598)   │
+│   ITAU UNIBANCO S.A.                  │ Main CNAE:      72.10-0-00 (Research & Development)     │
+│                                       │ Partners (QSA): MAGDA MARIA DE REGINATO (President)     │
 │                                       ├─────────────────────────────────────────────────────────┤
-│                                       │ 🔗 Ações Rápidas:                                       │
-│                                       │   [c] Copiar Ficha Completa  │  [g] Google  │  [m] Maps│
+│                                       │ 🔗 Quick Actions:                                       │
+│                                       │   [c] Copy Full Card  │  [g] Google  │  [m] Maps        │
 ├───────────────────────────────────────┴─────────────────────────────────────────────────────────┤
-│ [Tab] Alternar Abas  │  [?] Ajuda  │  [q] Sair                                                 │
+│ [Tab] Switch Tabs  │  [?] Help  │  [q] Quit                                                     │
 └─────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### ABA 2: `[ Exportação ]`
+### TAB 2: `[ Export ]`
 
 ```text
 ┌── lazy_cnpj v0.1.0 ─────────────────────────────────────────────────────────────────────────────┐
-│ Pesquisa  [ Exportação ]  Update                                                               │
+│ Search  [ Export ]  Update                                                                     │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Configuração de Exportação para CSV (Fonte: Banco SQLite Local)                                 │
+│ CSV Export Configuration (Source: Local SQLite Database)                                        │
 ├───────────────────────────────────────┬─────────────────────────────────────────────────────────┤
-│ Filtros de Exportação:                │ Campos a Incluir no Arquivo CSV:                        │
-│ UF:       [ RJ, SP                 ]  │ [X] CNPJ Completo        [X] Telefone / E-mail          │
-│ Situação: [ 🟢 Apenas Ativas       ]  │ [X] Razão Social         [X] CNAE Principal             │
-│ CEP:      [ Todos                  ]  │ [X] Nome Fantasia        [ ] CNAEs Secundários          │
-│ CNAE:     [ Todos                  ]  │ [X] Situação Cadastral   [X] Quadro de Sócios (QSA)     │
-│                                       │ [X] Endereço Completo    [ ] Capital Social             │
+│ Export Filters:                       │ Fields to Include in Output File:                       │
+│ State:    [ RJ, SP                 ]  │ [X] Full CNPJ            [X] Phone / Email              │
+│ Status:   [ 🟢 Active Only         ]  │ [X] Company Name         [X] Main CNAE                  │
+│ ZIP:      [ All                    ]  │ [X] Trade Name           [ ] Secondary CNAEs            │
+│ CNAE:     [ All                    ]  │ [X] Registration Status  [X] Board of Partners (QSA)    │
+│                                       │ [X] Full Address         [ ] Capital Stock              │
 │                                       ├─────────────────────────────────────────────────────────┤
-│ Limit:    [ 10000 registros        ]  │ Caminho do Arquivo de Saída:                            │
-│                                       │ [ ./cnpjs_exportados.csv                       ]        │
+│ Limit:    [ 10000 records          ]  │ Output File Path:                                       │
+│                                       │ [ ./cnpjs_exported.csv                         ]        │
 ├───────────────────────────────────────┴─────────────────────────────────────────────────────────┤
-│ [Tab] Alternar Abas  │  [?] Ajuda  │  [q] Sair                                                 │
+│ [Tab] Switch Tabs  │  [?] Help  │  [q] Quit                                                     │
 └─────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### ABA 3: `[ Update ]` (Motor de Carga Paralela Adaptativo)
+### TAB 3: `[ Update ]` (Adaptive Concurrency ETL Engine)
 
 ```text
 ┌── lazy_cnpj v0.1.0 ─────────────────────────────────────────────────────────────────────────────┐
-│ Pesquisa  Exportação  [ Update ]                                                                │
+│ Search  Export  [ Update ]                                                                      │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 💻 Diagnóstico de Recursos & Concorrência Adaptativa:                                           │
-│ RAM Disponível: 8.4 GB (Excelente) │ Espaço Livre: 55.2 GB │ Modo Concorrente: 🚀 ALTO PERFIL   │
-│ Configuração Automática: 3 Downloads Concorrentes │ 2 Workers de Unzip/Stream em Memória        │
+│ 💻 Hardware Resource Sensor & Adaptive Concurrency:                                             │
+│ Available RAM: 8.4 GB (Optimal) │ Free Disk Space: 55.2 GB │ Mode: 🚀 HIGH PERFORMANCE PROFILE   │
+│ Auto Configuration: 3 Concurrent Downloads │ 4 MPSC CSV Parsing Workers -> 1 DB Writer           │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Status Atual: PROCESSANDO DADOS DA RECEITA FEDERAL                                              │
+│ Current Status: PROCESSING RECEITA FEDERAL PUBLIC DATA                                          │
 │                                                                                                 │
-│ Downloads Simultâneos:                                                                          │
+│ Concurrent Downloads:                                                                           │
 │ [████████████████████████████████████████] 100% Download: Estabelecimentos1.zip (240 MB)        │
 │ [████████████████████████████████────────]  80% Download: Estabelecimentos2.zip (190/240 MB)    │
 │ [████████████████────────────]  40% Download: Estabelecimentos3.zip (96/240 MB)                 │
 │                                                                                                 │
-│ Pipeline Streaming CSV -> SQLite:                                                               │
-│ [████████████████████████████────────────]  70% Inserindo Estabelecimentos1 (Batch WAL Mode)    │
+│ MPSC Pipeline CSV Parsing -> SQLite Batch Insert:                                               │
+│ [████████████████████████████────────────]  70% Inserting Estabelecimentos1 (Batch WAL Mode)    │
 │                                                                                                 │
-│ Registros Totais: 24.100.000 / ~42.000.000 | Velocidade: 145.000 reg/s | Temp. Livre: +480 MB   │
+│ Total Records: 24.100.000 / ~45.000.000 | Speed: 145,000 rec/s | Free Disk Space: +480 MB       │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ [Tab] Alternar Abas  │  [?] Ajuda  │  [q] Sair                                                  │
+│ [Tab] Switch Tabs  │  [?] Help  │  [q] Quit                                                     │
 └─────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### MODAL DE AJUDA (Acionado por `?` em qualquer aba)
+### HELP OVERLAY MODAL (Triggered by `?` in any tab)
 
 ```text
-┌── Ajuda & Atalhos Teclado ──────────────────────────────────────────┐
+┌── Help & Keyboard Shortcuts ────────────────────────────────────────┐
 │                                                                     │
-│ Navegação Geral:                                                    │
-│   Tab / Shift+Tab  - Alternar entre as 3 abas (Pesquisa, Export, Update)│
-│   1, 2, 3          - Ir diretamente para a aba correspondente       │
-│   ?                - Abrir / Fechar esta janela de ajuda            │
-│   q / Esc          - Sair do aplicativo                             │
+│ General Navigation:                                                 │
+│   Tab / Shift+Tab  - Switch between main tabs (Search, Export, Update)│
+│   1, 2, 3          - Jump directly to tab                           │
+│   ?                - Toggle this help window                        │
+│   q / Esc          - Quit application                               │
 │                                                                     │
-│ Aba Update (Motor Adaptativo):                                      │
-│   u                - Iniciar/Retomar Atualização                    │
-│   p                - Pausar / Retomar Downloads & Carga             │
+│ Update Tab (ETL Engine):                                            │
+│   u                - Start / Resume Update                          │
+│   p                - Pause / Resume Downloads                       │
 │                                                                     │
-│                                         [ Pressione Esc para Fechar ]│
+│                                         [ Press Esc to Close ]     │
 └─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 360° COMPANY DETAILS MODAL (`tui-overlay` Floating Widget)
+
+```text
+┌── 🏢 Company 360° Details ───────────────────────────────────────────────────────────────── [ESC/q: Close] ──┐
+│ [1] Main Registration  │  [2] QSA (Partners: 3)  │  [3] Branches (14)  │  [4] Secondary CNAEs (8)           │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 📌 COMPANY NAME: PETROLEO BRASILEIRO S A PETROBRAS                                                           │
+│ 🏷️ TRADE NAME:   CENTRO DE PESQUISAS E DESENVOLVIMENTO LEOPOLDO AMERICO MIQUEZ DE MELLO                     │
+├───────────────────────────────────────┬──────────────────────────────────────────────────────────────────────┤
+│ 📋 Registration Data                  │ 📍 Location & Contact                                                │
+│ • CNPJ:      33.000.167/0001-01 (Head) │ • Address:   AVENIDA HORACIO MACEDO, 950                              │
+│ • Status:    🟢 ACTIVE since 03/11/2005│ • District:  CIDADE UNIVERSITARIA                                    │
+│ • Reason:    NO REASON                │ • City/State:RIO DE JANEIRO - RJ                                     │
+│ • Size:      DEMAIS (Large Enterprise)│ • ZIP:       21.941-598                                              │
+│ • Cap. Stock:R$ 205.431.983.300,00    │ • Email:     contato@petrobras.com.br                                │
+│ • Legal Nat.:203-8 - Soc. Anônima     │ • Phone:     (21) 3866-4000                                          │
+├───────────────────────────────────────┴──────────────────────────────────────────────────────────────────────┤
+│ 💼 Main Economic Activity (CNAE)                                                                             │
+│ • Code: 72.10-0-00 - Experimental research and development in physical and natural sciences                  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 👥 Board of Partners & Officers (QSA) - Summary                                                              │
+│ > MAGDA MARIA DE REGINATO CHAMBRIARD (President) ── since 24/05/2024                                         │
+│ > SERGIO CAETANO LEITE (Financial Director) ──────── since 15/06/2023                                         │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 🔗 Quick Actions:                                                                                            │
+│  [c] Copy CNPJ  │  [f] Copy JSON Card  │  [g] Search on Google  │  [m] Open on Maps  │  [e] Export Record     │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```

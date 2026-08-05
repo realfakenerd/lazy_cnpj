@@ -1,83 +1,108 @@
-# Plano de Implementação Final - `lazy_cnpj` (Ratatui TUI)
+# Final Implementation Plan - `lazy_cnpj` (Ratatui TUI)
 
-Este documento consolida a arquitetura técnica e o design de interface do **`lazy_cnpj`**.
-
----
-
-## 1. Visão Geral da Arquitetura & Motor de Carga Concorrente Adaptativo
-
-### Motor de ETL Adaptativo em Rust (Tokio + Streams + Memory Zip)
-O sistema detecta em tempo real os recursos do hardware (RAM e Espaço em Disco) e ajusta dinamicamente a taxa de concorrência:
-
-1. **Diagnóstico do Perfil de Hardware (`src/etl/monitor.rs`)**:
-   - **Perfil Conservador (RAM < 4GB ou Disco < 15GB)**:
-     - 1 Download por vez + 1 Streamer de Leitura em Memória + Exclusão imediata.
-   - **Perfil Moderado (RAM 4GB~8GB e Disco > 15GB)**:
-     - 2 Downloads simultâneos + 1 Worker de Inserção SQLite.
-   - **Perfil Alta Performance (RAM > 8GB e Disco > 30GB)**:
-     - 3 a 4 Downloads simultâneos em paralelo + Pipeline de múltiplos workers descompactando e inserindo no SQLite simultaneamente.
-
-2. **Parsing Direct em Memória (Sem Extração em Disco)**:
-   - Utilização da crate `zip` integrada com a crate `csv` para ler dados diretamente da stream/buffer de memória do arquivo ZIP sem descompactá-lo no HD.
+This document consolidates the technical architecture and interface design for **`lazy_cnpj`**.
 
 ---
 
-## 2. Estrutura dos Arquivos (`src/`)
+## 1. Architecture Overview & Adaptive Concurrent ETL Engine
+
+### Adaptive ETL Engine in Rust (Tokio + MPSC + Disk Pipeline)
+The system operates on an optimized pipeline with adaptive concurrency based on hardware resources:
+
+1. **4-Stage ETL Pipeline (Download > Unzip > Parse/Sanitize > Batch Insert > Cleanup)**:
+   - **Temporary Download**: The `.zip` file from Receita Federal is downloaded into the temporary folder `.cache/downloads/`.
+   - **Unzip & Stream Reading**: The CSV is extracted temporarily and read via `BufReader` + `csv::Reader`.
+   - **MPSC Channel (Multi-Producer, Single-Consumer)**: Multiple parsing workers convert CSV rows into sanitized Rust structs in parallel and send them into an async `tokio::sync::mpsc` channel.
+   - **Single SQLite DB Writer Worker**: A dedicated worker consumes from the MPSC channel and inserts records into SQLite in massive transactions (batches of 50,000~100,000 records), avoiding `SQLITE_BUSY` / `DatabaseLocked` errors.
+   - **Cleanup**: After each file chunk is processed, the temporary `.zip` and `.csv` files are immediately deleted from disk.
+
+2. **Monthly Database Update (Atomic Swap DB Strategy)**:
+   - For full monthly reloads without locking or corrupting the active database, the ETL creates a temporary database `lazy_cnpj_temp.db`.
+   - All data insertion occurs in the temporary database **without active indexes** for maximum insertion speed.
+   - After insertion completes, B-Tree indexes and FTS5 virtual tables are built in a single pass.
+   - An atomic file swap is performed: `lazy_cnpj_temp.db` is renamed to replace `lazy_cnpj.db`.
+
+3. **Hardware Sensor & Diagnostics (`src/etl/monitor.rs`)**:
+   - **Conservative Profile (RAM < 4GB or Disk < 15GB)**:
+     - 1 Download at a time + Sequential pipeline.
+   - **Moderate Profile (RAM 4GB~8GB and Disk > 15GB)**:
+     - 2 Concurrent downloads + 2 CSV Parsing Workers -> 1 DB Writer.
+   - **High Performance Profile (RAM > 8GB and Disk > 30GB)**:
+     - 3 to 4 Concurrent downloads + 4 CSV Parsing Workers -> 1 Batch DB Writer.
+
+---
+
+## 2. Directory & Source Structure (`src/`)
 
 ```text
 lazy_cnpj/
 ├── Cargo.toml
 └── src/
-    ├── main.rs                 # Loop principal Tokio/Crossterm/Ratatui
-    ├── app.rs                  # Gestão de estado global
+    ├── main.rs                 # Tokio/Crossterm/Ratatui main event loop
+    ├── app.rs                  # Global application state management
     ├── db/
-    │   ├── mod.rs              # Conexão SQLite (WAL Mode + Mutex/Arc para concorrência)
-    │   ├── schema.rs           # Definição de tabelas e índices
-    │   └── queries.rs          # Queries de busca e stream de exportação
+    │   ├── mod.rs              # SQLite connection pool & Diesel setup
+    │   ├── schema.rs           # Diesel schema mapping definitions
+    │   └── queries.rs          # Search queries, FTS5 lookup & export streaming
     ├── etl/
-    │   ├── monitor.rs          # Sensor de hardware (RAM Livre e Espaço em Disco com `sysinfo`)
-    │   ├── downloader.rs       # Streamer HTTP concorrente (Tokio + `reqwest`)
-    │   ├── zip_streamer.rs     # Parser de ZIP em memória (crate `zip` + `csv`)
-    │   └── importer.rs         # Gerenciador de workers concorrentes de inserção
+    │   ├── monitor.rs          # Hardware sensor (Free RAM & Disk space via `sysinfo`)
+    │   ├── downloader.rs       # Concurrent HTTP streamer (Tokio + `reqwest`)
+    │   ├── zip_streamer.rs     # Disk unzip & CSV parser pipeline (`zip` + `csv`)
+    │   └── importer.rs         # MPSC channel & batch insertion worker manager
     ├── exporter/
-    │   └── csv_writer.rs       # Streamer de exportação SQL -> CSV
+    │   └── csv_writer.rs       # SQL query to CSV/JSON streaming exporter
     ├── ui/
-    │   ├── mod.rs              # Layout base (Header, Body, Footer, Help Popup)
-    │   ├── search_tab.rs       # Layout da aba Pesquisa
-    │   ├── export_tab.rs       # Layout da aba Exportação
-    │   ├── update_tab.rs       # Layout da aba Update (Gauges de Concorrência Adaptativa)
-    │   └── help_popup.rs       # Popup modal de ajuda
+    │   ├── mod.rs              # Base TUI layout (Header, Body, Footer, Overlay manager)
+    │   ├── search_tab.rs       # Search Tab layout & table view
+    │   ├── export_tab.rs       # Export configuration Tab layout
+    │   ├── update_tab.rs       # Update Tab layout (Adaptive ETL progress gauges)
+    │   └── help_popup.rs       # Keyboard shortcuts & help overlay modal
     ├── utils/
-    │   ├── clipboard.rs        # Gerenciador da Área de Transferência (`arboard`)
-    │   └── launcher.rs         # Utilitário para abrir URLs no navegador (`open`)
+    │   ├── clipboard.rs        # OS Clipboard helper (`arboard`)
+    │   └── launcher.rs         # Default browser URL opener (`open`)
     └── models/
-        ├── company.rs          # Modelos de dados
-        └── export_config.rs    # Opções e colunas da exportação CSV
+        ├── company.rs          # Domain & Diesel model structs
+        └── export_config.rs    # Export options & column selections
 ```
 
 ---
 
-## 3. Dependências Adicionadas ao Cargo.toml
+## 3. Cargo.toml Dependencies
 
 ```toml
 [dependencies]
-ratatui = "0.29"
-crossterm = "0.28"
+# UI & Terminal
+ratatui = { version = "0.30", features = ["crossterm", "macros"] }
+ratatui-textarea = "0.4"      # Interactive text field with cursor support
+throbber-widgets-tui = "0.8"  # Loading spinners for ETL status
+tui-overlay = "0.1"           # Overlay, popups, and modal drawer manager
+tui-scrollview = "0.2"        # Scrollable container for company 360 view
+tui-logger = "0.14"           # Real-time diagnostic logger panel
+
+# Async Runtime & Hardware Monitoring
 tokio = { version = "1", features = ["full"] }
-rusqlite = { version = "0.32", features = ["bundled"] }
+sysinfo = "0.31"   # Hardware sensor (RAM and free disk space)
+
+# SQLite Database (Diesel ORM)
+diesel = { version = "2.2", features = ["sqlite", "returning"] }
+diesel_migrations = "2.2"
+
+# ETL, Parsers & Streams
 csv = "1.3"
 zip = "2.2"
 reqwest = { version = "0.12", features = ["stream"] }
-sysinfo = "0.31"   # Monitoramento de hardware (RAM e Espaço Livre)
-open = "5.3"       # Abertura de links no navegador default
-arboard = "3.4"    # Cópia para área de transferência do SO
+serde = { version = "1", features = ["derive"] }
+
+# System Utilities
+open = "5.3"       # Open URLs in system default browser
+arboard = "3.4"    # OS Clipboard integration
 ```
 
 ---
 
-## 4. Plano de Execução
+## 4. Execution Plan
 
-1. Inicializar o repositório Cargo (`cargo init`).
-2. Adicionar as dependências no `Cargo.toml`.
-3. Criar os utilitários de sistema e o sensor de hardware adaptativo (`etl/monitor.rs`).
-4. Construir o motor concorrente de downloads/stream e a TUI Ratatui.
+1. Initialize the Cargo repository (`cargo init`).
+2. Populate `Cargo.toml` with the specified dependencies.
+3. Build system utilities and adaptive hardware monitor (`etl/monitor.rs`).
+4. Construct the concurrent MPSC ETL pipeline and the Ratatui TUI engine.
