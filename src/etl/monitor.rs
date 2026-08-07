@@ -1,4 +1,4 @@
-use sysinfo::Disks;
+use sysinfo::{Disk, Disks};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PerformanceProfile {
@@ -8,7 +8,7 @@ pub enum PerformanceProfile {
 }
 
 impl PerformanceProfile {
-    pub fn max_concurrent_downloads(&self) -> usize {
+    pub fn max_concurrent_downloads(self) -> usize {
         match self {
             PerformanceProfile::Conservative => 1,
             PerformanceProfile::Moderate => 2,
@@ -16,7 +16,7 @@ impl PerformanceProfile {
         }
     }
 
-    pub fn csv_parsing_workers(&self) -> usize {
+    pub fn csv_parsing_workers(self) -> usize {
         match self {
             PerformanceProfile::Conservative => 1,
             PerformanceProfile::Moderate => 2,
@@ -24,7 +24,7 @@ impl PerformanceProfile {
         }
     }
 
-    pub fn db_batch_size(&self) -> usize {
+    pub fn db_batch_size(self) -> usize {
         match self {
             PerformanceProfile::Conservative => 25_000,
             PerformanceProfile::Moderate => 50_000,
@@ -43,7 +43,7 @@ pub fn detect_profile() -> PerformanceProfile {
     let available_disk_db = disk
         .list()
         .iter()
-        .map(|disk| disk.available_space())
+        .map(Disk::available_space)
         .max()
         .unwrap_or(0) as f64
         / (1024.0 * 1024.0 * 1024.0);

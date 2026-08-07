@@ -40,7 +40,7 @@ pub struct Estabelecimento {
 }
 
 impl Estabelecimento {
-    pub fn formatted_cnpj(&self) -> String {
+    pub fn formatted_cnpj(self) -> String {
         format!(
             "{:08}/{:04}-{:02}",
             self.cnpj_basico, self.cnpj_ordem, self.cnpj_dv
