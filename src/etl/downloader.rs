@@ -1,14 +1,14 @@
-use std::{
-    fs,
-    path::PathBuf,
-    sync::{Arc, mpsc},
-};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use futures_util::StreamExt;
 use reqwest::Client;
-use tokio::sync::Semaphore;
+use tokio::fs::{self, File};
+use tokio::io::AsyncWriteExt;
+use tokio::sync::{mpsc, Semaphore};
 
-pub const RECEITA_BASE_URL: &str = "https://arquivos.receitafederal.gov.
-  br/dados/cnpj/dados_abertos_cnpj/";
+pub const RECEITA_BASE_URL: &str =
+    "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/";
 
 #[derive(Debug, Clone)]
 pub struct DownloadTarget {
@@ -40,7 +40,7 @@ pub enum DownloadProgress {
         filename: String,
         path: PathBuf,
     },
-    Finished {
+    Failed {
         filename: String,
         error: String,
     },
@@ -144,13 +144,8 @@ async fn download_single_file(
     let mut downloaded_bytes: u64 = 0;
 
     while let Some(chunk_res) = stream.next().await {
-        let chunk = chunk_res.map_err(|e| {
-            format!(
-                "Stream read error for {}:
-{}",
-                target.filename, e
-            )
-        })?;
+        let chunk =
+            chunk_res.map_err(|e| format!("Stream read error for {}: {}", target.filename, e))?;
         file.write_all(&chunk)
             .await
             .map_err(|e| format!("Disk write error for {}: {}", target.filename, e))?;
@@ -178,6 +173,7 @@ async fn download_single_file(
 
     Ok(())
 }
+
 pub fn default_cnpj_targets() -> Vec<DownloadTarget> {
     let mut targets = Vec::new();
 

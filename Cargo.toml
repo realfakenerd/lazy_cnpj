@@ -16,6 +16,7 @@ tui-scrollview = "0.6.7"
 tui-logger = "0.18.3"
 
 tokio = { version = "1.53.1", features = ["full"] }
+futures-util = "0.3"
 sysinfo = "0.39.6"
 
 diesel = { version = "2.3.11", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
